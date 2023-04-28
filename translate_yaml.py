@@ -24,12 +24,20 @@ PLACEHOLDERS = [
     r"'[A-Za-z]+'",
 ]
 
+PLACEHOLDERS = [
+    r"%\w+%",
+    r"#\w+",
+    r"-\w+",
+    r"&\w+",
+    r"'[A-Za-z]+'",
+]
+
 def translate_text(key, text, target, source):
     placeholders = []
     for ph in PLACEHOLDERS:
         matches = re.findall(ph, text)
-        for match in matches:
-            placeholder_id = str(uuid.uuid4())  # Generate a unique ID for each placeholder
+        for i, match in enumerate(matches):
+            placeholder_id = f"PLACEHOLDER{i}"  # Generate a unique ID for each placeholder
             placeholders.append((placeholder_id, match))
             text = text.replace(match, placeholder_id)
 
