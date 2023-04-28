@@ -8,7 +8,6 @@
 
 import argparse
 import re
-import uuid
 from googletrans import Translator
 from ruamel.yaml import YAML
 from concurrent.futures import ThreadPoolExecutor
@@ -18,19 +17,11 @@ translator.raise_Exception = True
 
 PLACEHOLDERS = [
     r"%\w+%",
-    r"#\w+",
-    r"-\w+",
     r"&\w+",
     r"'[A-Za-z]+'",
 ]
 
-PLACEHOLDERS = [
-    r"%\w+%",
-    r"#\w+",
-    r"-\w+",
-    r"&\w+",
-    r"'[A-Za-z]+'",
-]
+temp_words = ['SOMETHING', 'SOMEONE', 'PLACEHOLDER']
 
 def translate_text(key, text, target, source):
     placeholders = []
@@ -49,10 +40,15 @@ def translate_text(key, text, target, source):
         print(f"Error translating key: {key}, text: {text}. Error: {e}")
         translated_text = text
 
+    # Replace general words back to placeholders
+    for i in range(len(placeholders)):
+        translated_text = translated_text.replace(temp_words[i % len(temp_words)], placeholders[i][0])
+
+    # Replace placeholders with their original values
     for placeholder_id, original in placeholders:
         translated_text = translated_text.replace(placeholder_id, original)
 
-    return key, translated_text
+    return translated_text
 
 def translate_yaml(input_file, output_file, source_lang, target_lang, workers):
     yaml = YAML()
@@ -70,14 +66,12 @@ def translate_yaml(input_file, output_file, source_lang, target_lang, workers):
             if isinstance(value, list):
                 for i in range(len(value)):
                     futures.append(executor.submit(translate_text, key, value[i], target_lang, source_lang))
+                translated_content[key] = [future.result() for future in futures]
+                futures = []
             elif isinstance(value, str):
                 futures.append(executor.submit(translate_text, key, value, target_lang, source_lang))
-
-        for future in futures:
-            result = future.result()
-            if result:
-                key, value = result
-                translated_content[key] = value
+                translated_content[key] = futures[0].result()
+                futures = []
 
     for key in yaml_content.keys():
         if key in translated_content:
