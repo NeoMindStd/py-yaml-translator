@@ -7,36 +7,37 @@
 #####################################################################################################################
 
 import argparse
+import re
 from googletrans import Translator
 from ruamel.yaml import YAML
 from concurrent.futures import ThreadPoolExecutor
-import re
 
 translator = Translator(service_urls=['translate.google.com'])
 translator.raise_Exception = True
 
 def translate_text(key, text, target, source):
-    # Find all tokens that match the criteria
-    tokens = re.findall(r'&.*?%|#.*?%|-.*?%|&.*$', text)
-
-    # Replace the tokens with placeholders in the original text
-    for i, token in enumerate(tokens):
-        text = text.replace(token, f'Placeholder{i}', 1)
-
-    # Translate the text with the placeholders
     try:
+        # Process the text
+        tokens = re.findall(r"%\w+%", text)
+        for i, token in enumerate(tokens):
+            text = text.replace(token, f"PLACEHOLDER{i}")
+
+        # Translate the processed text
         result = translator.translate(text, dest=target, src=source)
-        translated_text = result.text
+        result_text = result.text
+
+        # Replace the placeholders with the original tokens
+        for i, token in enumerate(tokens):
+            result_text = result_text.replace(f"PLACEHOLDER{i}", token)
+
+        # Remove any newline characters from the translated text
+        result_text = result_text.replace('\n', ' ')
+
+        return key, result_text
+
     except Exception as e:
         print(f"Error translating key: {key}, text: {text}. Error: {e}")
-        translated_text = text
-
-    # Replace the placeholders with the original tokens in the translated text
-    for i, token in enumerate(tokens):
-        translated_text = translated_text.replace(f'Placeholder{i}', token, 1)
-
-    return key, translated_text.replace('\n', ' ')
-
+        return key, text
 
 def translate_yaml(input_file, output_file, source_lang, target_lang, workers):
     yaml = YAML()
