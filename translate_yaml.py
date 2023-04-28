@@ -16,33 +16,26 @@ translator = Translator(service_urls=['translate.google.com'])
 translator.raise_Exception = True
 
 def translate_text(key, text, target, source):
-    # Patterns to not translate
-    patterns = ['&.*? ', '#.*? ', '-.*? ', '%.*?%']
+    # Find all tokens that match the criteria
+    tokens = re.findall(r'&.*?%|#.*?%|-.*?%|&.*$', text)
 
-    # Replace the patterns with a placeholder
-    placeholders = []
-    for pattern in patterns:
-        matches = re.findall(pattern, text)
-        if matches:
-            for match in matches:
-                placeholder = f"PLACEHOLDER{len(placeholders)}"
-                text = text.replace(match, placeholder + ' ')
-                placeholders.append((placeholder, match.strip()))
+    # Replace the tokens with placeholders in the original text
+    for i, token in enumerate(tokens):
+        text = text.replace(token, f'Placeholder{i}', 1)
 
-    # Translate the text
+    # Translate the text with the placeholders
     try:
         result = translator.translate(text, dest=target, src=source)
-        # Remove any newline characters from the translated text
-        translated_text = result.text.replace('\n', ' ')
+        translated_text = result.text
     except Exception as e:
         print(f"Error translating key: {key}, text: {text}. Error: {e}")
         translated_text = text
 
-    # Replace the placeholders with original not-translated words
-    for placeholder, original in placeholders:
-        translated_text = translated_text.replace(placeholder, original)
+    # Replace the placeholders with the original tokens in the translated text
+    for i, token in enumerate(tokens):
+        translated_text = translated_text.replace(f'Placeholder{i}', token, 1)
 
-    return key, translated_text
+    return key, translated_text.replace('\n', ' ')
 
 
 def translate_yaml(input_file, output_file, source_lang, target_lang, workers):
