@@ -10,19 +10,40 @@ import argparse
 from googletrans import Translator
 from ruamel.yaml import YAML
 from concurrent.futures import ThreadPoolExecutor
+import re
 
 translator = Translator(service_urls=['translate.google.com'])
 translator.raise_Exception = True
 
 def translate_text(key, text, target, source):
+    # Patterns to not translate
+    patterns = ['&.*? ', '#.*? ', '-.*? ', '%.*?%']
+
+    # Replace the patterns with a placeholder
+    placeholders = []
+    for pattern in patterns:
+        matches = re.findall(pattern, text)
+        if matches:
+            for match in matches:
+                placeholder = f"PLACEHOLDER{len(placeholders)}"
+                text = text.replace(match, placeholder + ' ')
+                placeholders.append((placeholder, match.strip()))
+
+    # Translate the text
     try:
         result = translator.translate(text, dest=target, src=source)
         # Remove any newline characters from the translated text
-        result_text = result.text
-        return key, result_text.replace('\n', ' ')
+        translated_text = result.text.replace('\n', ' ')
     except Exception as e:
         print(f"Error translating key: {key}, text: {text}. Error: {e}")
-        return key, text
+        translated_text = text
+
+    # Replace the placeholders with original not-translated words
+    for placeholder, original in placeholders:
+        translated_text = translated_text.replace(placeholder, original)
+
+    return key, translated_text
+
 
 def translate_yaml(input_file, output_file, source_lang, target_lang, workers):
     yaml = YAML()
