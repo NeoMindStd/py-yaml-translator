@@ -8,6 +8,7 @@
 
 import argparse
 import re
+import uuid
 from googletrans import Translator
 from ruamel.yaml import YAML
 from concurrent.futures import ThreadPoolExecutor
@@ -15,29 +16,35 @@ from concurrent.futures import ThreadPoolExecutor
 translator = Translator(service_urls=['translate.google.com'])
 translator.raise_Exception = True
 
+PLACEHOLDERS = [
+    r"%\w+%",
+    r"#\w+",
+    r"-\w+",
+    r"&\w+",
+    r"'[A-Za-z]+'",
+]
+
 def translate_text(key, text, target, source):
+    placeholders = []
+    for ph in PLACEHOLDERS:
+        matches = re.findall(ph, text)
+        for match in matches:
+            placeholder_id = str(uuid.uuid4())  # Generate a unique ID for each placeholder
+            placeholders.append((placeholder_id, match))
+            text = text.replace(match, placeholder_id)
+
+    # Translate the text while ignoring placeholders
     try:
-        # Process the text
-        tokens = re.findall(r"%\w+%", text)
-        for i, token in enumerate(tokens):
-            text = text.replace(token, f"PLACEHOLDER{i}")
-
-        # Translate the processed text
         result = translator.translate(text, dest=target, src=source)
-        result_text = result.text
-
-        # Replace the placeholders with the original tokens
-        for i, token in enumerate(tokens):
-            result_text = result_text.replace(f"PLACEHOLDER{i}", token)
-
-        # Remove any newline characters from the translated text
-        result_text = result_text.replace('\n', ' ')
-
-        return key, result_text
-
+        translated_text = result.text
     except Exception as e:
         print(f"Error translating key: {key}, text: {text}. Error: {e}")
-        return key, text
+        translated_text = text
+
+    for placeholder_id, original in placeholders:
+        translated_text = translated_text.replace(placeholder_id, original)
+
+    return key, translated_text
 
 def translate_yaml(input_file, output_file, source_lang, target_lang, workers):
     yaml = YAML()
