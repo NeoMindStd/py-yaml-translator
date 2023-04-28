@@ -38,7 +38,7 @@ def translate_text(key, text, target, source):
         translated_text = result.text
     except Exception as e:
         print(f"Error translating key: {key}, text: {text}. Error: {e}")
-        translated_text = text
+        return text
 
     # Replace general words back to placeholders
     for i in range(len(placeholders)):
@@ -46,9 +46,10 @@ def translate_text(key, text, target, source):
 
     # Replace placeholders with their original values
     for placeholder_id, original in placeholders:
-        translated_text = translated_text.replace(placeholder_id, original)
+        pattern = re.compile(placeholder_id, re.IGNORECASE)
+        translated_text = pattern.sub(original, translated_text)
 
-    return translated_text
+    return translated_text.replace('\n', ' ')
 
 def translate_yaml(input_file, output_file, source_lang, target_lang, workers):
     yaml = YAML()
